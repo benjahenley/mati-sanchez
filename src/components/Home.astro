@@ -125,9 +125,14 @@
 <script>
   // TikTok Detection Function
   function detectTikTokSource() {
-    // Check URL parameters
+    console.log("Starting TikTok detection...");
+
+    // Check URL parameters first
     const urlParams = new URLSearchParams(window.location.search);
     const fragment = window.location.hash;
+
+    console.log("URL params:", urlParams.toString());
+    console.log("Fragment:", fragment);
 
     // Common TikTok URL parameters
     const tiktokParams = [
@@ -136,38 +141,70 @@
       "utm_source=tiktok",
       "from=tiktok",
       "tiktok=1",
+      "tt=1",
     ];
 
     // Check if any TikTok parameter exists
     for (const param of tiktokParams) {
       const [key, value] = param.split("=");
       if (urlParams.get(key) === value) {
+        console.log("TikTok detected via URL parameter:", param);
+        localStorage.setItem("fromTikTok", "true");
+        return true;
+      }
+    }
+
+    // Also check for just the presence of these keys (even without specific values)
+    const tiktokKeys = ["ref", "source", "utm_source", "from", "tiktok", "tt"];
+    for (const key of tiktokKeys) {
+      const value = urlParams.get(key);
+      if (
+        value &&
+        (value.toLowerCase().includes("tiktok") ||
+          value.toLowerCase().includes("tt"))
+      ) {
+        console.log(
+          "TikTok detected via URL parameter key:",
+          key,
+          "value:",
+          value
+        );
+        localStorage.setItem("fromTikTok", "true");
         return true;
       }
     }
 
     // Check referrer header
     const referrer = document.referrer.toLowerCase();
+    console.log("Referrer:", referrer);
+
     const tiktokDomains = [
       "tiktok.com",
       "vm.tiktok.com",
       "vt.tiktok.com",
       "m.tiktok.com",
       "www.tiktok.com",
+      "bytedance.com",
     ];
 
     for (const domain of tiktokDomains) {
       if (referrer.includes(domain)) {
+        console.log("TikTok detected via referrer:", domain);
+        localStorage.setItem("fromTikTok", "true");
         return true;
       }
     }
 
     // Check User Agent for TikTok in-app browser
     const userAgent = navigator.userAgent.toLowerCase();
-    const tiktokUserAgents = ["tiktok", "musically", "aweme"];
+    console.log("User Agent:", userAgent);
+
+    const tiktokUserAgents = ["tiktok", "musically", "aweme", "bytedance"];
 
     for (const agent of tiktokUserAgents) {
       if (userAgent.includes(agent)) {
+        console.log("TikTok detected via user agent:", agent);
+        localStorage.setItem("fromTikTok", "true");
         return true;
       }
     }
@@ -175,15 +212,41 @@
     // Check localStorage for previous TikTok detection
     const previouslyFromTikTok = localStorage.getItem("fromTikTok");
     if (previouslyFromTikTok === "true") {
+      console.log("TikTok detected via localStorage");
       return true;
     }
 
+    // Enhanced mobile detection - if on mobile and no other indicators, assume TikTok
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
+    const isSmallScreen = window.innerWidth <= 768;
+
+    // If it's mobile and no clear non-TikTok indicators, default to TikTok view
+    if (
+      (isMobile || isSmallScreen) &&
+      !referrer.includes("google") &&
+      !referrer.includes("facebook") &&
+      !referrer.includes("instagram")
+    ) {
+      console.log(
+        "Mobile user with no clear non-TikTok referrer - defaulting to TikTok"
+      );
+      localStorage.setItem("fromTikTok", "true");
+      return true;
+    }
+
+    console.log("No TikTok indicators found");
     return false;
   }
 
   // Initialize the page based on source detection
   function initializePage() {
+    console.log("Initializing page...");
+
     const isFromTikTok = detectTikTokSource();
+    console.log("Is from TikTok:", isFromTikTok);
 
     // Show appropriate content
     const tiktokContent = document.getElementById("tiktok-content");
@@ -191,11 +254,14 @@
 
     if (!tiktokContent || !defaultContent) {
       console.error("Required elements not found");
+      // If elements aren't found, show TikTok content by default
+      if (tiktokContent) tiktokContent.style.display = "flex";
       return;
     }
 
     if (isFromTikTok) {
       // Show TikTok content but disable the button
+      console.log("Showing TikTok content");
       tiktokContent.style.display = "flex";
       defaultContent.style.display = "none";
 
@@ -219,6 +285,7 @@
       }
     } else {
       // Show only title and button for non-TikTok users
+      console.log("Showing default content");
       tiktokContent.style.display = "none";
       defaultContent.style.display = "flex";
       console.log("User not from TikTok - showing simplified content");
