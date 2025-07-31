@@ -216,25 +216,35 @@
       return true;
     }
 
-    // Enhanced mobile detection - if on mobile and no other indicators, assume TikTok
+    // More conservative mobile detection - only assume TikTok with stronger indicators
     const isMobile =
       /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent
       );
     const isSmallScreen = window.innerWidth <= 768;
 
-    // If it's mobile and no clear non-TikTok indicators, default to TikTok view
-    if (
-      (isMobile || isSmallScreen) &&
-      !referrer.includes("google") &&
-      !referrer.includes("facebook") &&
-      !referrer.includes("instagram")
-    ) {
-      console.log(
-        "Mobile user with no clear non-TikTok referrer - defaulting to TikTok"
-      );
-      localStorage.setItem("fromTikTok", "true");
-      return true;
+    // Only default to TikTok for mobile if there are specific share indicators
+    // This avoids showing TikTok content to Safari users browsing directly
+    if (isMobile || isSmallScreen) {
+      const currentUrl = window.location.href.toLowerCase();
+      const hasShareIndicators =
+        currentUrl.includes("share") ||
+        currentUrl.includes("link") ||
+        urlParams.has("s") ||
+        urlParams.has("share") ||
+        urlParams.has("utm_medium") ||
+        (!referrer && !document.referrer && currentUrl.includes("?")); // Has params but no referrer
+
+      if (
+        hasShareIndicators &&
+        !referrer.includes("google") &&
+        !referrer.includes("facebook") &&
+        !referrer.includes("instagram")
+      ) {
+        console.log("Mobile user with share indicators - likely from TikTok");
+        localStorage.setItem("fromTikTok", "true");
+        return true;
+      }
     }
 
     console.log("No TikTok indicators found");
